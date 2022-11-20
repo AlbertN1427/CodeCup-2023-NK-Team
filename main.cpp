@@ -1,12 +1,18 @@
+/*
+ * Current issues:
+ * +) Not tested for depth > 0.
+ */
+
 #include <iostream>
-#include <set>
+#include <climits>
+#include <queue>
 #include <string>
 #include <utility>
 
 using namespace std;
 
 int board[256][256];
-set<pair<int, int>> filledTiles;
+int tileCountOfColour[10];
 
 void printBoard()
 {
@@ -15,55 +21,57 @@ void printBoard()
             cout << board[i][j];
 }
 
-bool place(string myMove)
+string cat(char i, char j)
+{
+    return string(1, i) + string(1, j);
+}
+
+void place(string myMove)
 {
     int colour = myMove[0] - '0';
     char i = myMove[1];
     char j = myMove[2];
 
-    // Try to place a tile of some colour at (i, j).
-    // Return false if the move is illegal.
+    // Assuming that a placement at (i, j) is legal.
 
-    if (i < 'A' || i > 'G') return false;
-    if (j < 'a' || j > 'g') return false;
     board[i][j] = colour;
-    return true;
+    tileCountOfColour[colour]--;
 }
 
-bool slide(string myMove)
+void undoPlace(string myMove)
+{
+    int colour = myMove[0] - '0';
+    char i = myMove[1];
+    char j = myMove[2];
+
+    // Assuming that the placement at (i, j) was legal.
+
+    board[i][j] = 0;
+    tileCountOfColour[colour]++;
+}
+
+void slide(string myMove)
 {
     char i = myMove[0];
     char j = myMove[1];
     char m = myMove[2];
     char n = myMove[3];
 
-    // Try to move a tile from (i, j) to (m, n).
-    // Return false if the move is illegal.
+    // Assuming that a slide from (i, j) to (m, n) is legal.
 
-    if (i < 'A' || i > 'G') return false;
-    if (j < 'a' || j > 'g') return false;
-    if (m < 'A' || m > 'G') return false;
-    if (n < 'a' || n > 'g') return false;
+    swap(board[i][j], board[m][n]);
+}
 
-    if (i == m)
-    {
-        int delta = ((j < n) ? 1 : -1);
-        for (int t = j + 1; t <= n; t += delta)
-            if (board[i][t]) return false;
-        swap(board[i][j], board[m][n]);
-        return true;
-    }
+void undoSlide(string myMove)
+{
+    char i = myMove[0];
+    char j = myMove[1];
+    char m = myMove[2];
+    char n = myMove[3];
 
-    if (j == n)
-    {
-        int delta = ((i < m) ? 1 : -1);
-        for (int t = i + 1; t <= m; t += delta)
-            if (board[t][j]) return false;
-        swap(board[i][j], board[m][n]);
-        return true;
-    }
+    // Assuming that the slide from (i, j) to (m, n) was legal.
 
-    return false;
+    swap(board[m][n], board[i][j]);
 }
 
 int getScoreFromHorizontalExpansion(char row, char left, char right)
@@ -98,7 +106,6 @@ int getScoreFromVerticalExpansion(char column, char up, char down)
 int getScore()
 {
     int score = 0;
-
     for (char i = 'A'; i <= 'G'; i++)
         for (char j = 'a'; j <= 'g'; j++)
         {
@@ -107,18 +114,127 @@ int getScore()
             score += getScoreFromVerticalExpansion(j, i, i);
             score += getScoreFromVerticalExpansion(j, i, i + 1);
         }
-
     return score;
+}
+
+int getBestMove(string& bestMove, const string& type, const string& colour, int depth)
+{
+    if (type == "Chaos")
+    {
+        int scoreInCaseOfBestMove = INT_MAX;
+
+        for (char i = 'A'; i <= 'G'; i++)
+            for (char j = 'a'; j <= 'g'; j++)
+            {
+                if (board[i][j]) continue;
+
+                string tile = cat(i, j);
+                string myMove = colour + tile;
+
+                place(myMove);
+
+                int nextScore = getScore();
+                if (depth != 0) nextScore = getBestMove(bestMove, "Order", colour, depth - 1);
+
+                if (nextScore < scoreInCaseOfBestMove)
+                {
+                    bestMove = myMove;
+                    scoreInCaseOfBestMove = nextScore;
+                }
+
+                undoPlace(myMove);
+            }
+        return scoreInCaseOfBestMove;
+    }
+
+    if (type == "Order")
+    {
+        int nextColourAsInt = 0;
+        int mostAbundantColour = 0;
+        for (int i = 1; i <= 7; i++)
+            if (tileCountOfColour[i] > mostAbundantColour)
+            {
+                nextColourAsInt = i;
+                mostAbundantColour = tileCountOfColour[i];
+            }
+        string nextColour = string(nextColourAsInt + '0', 1);
+
+        int scoreInCaseOfBestMove = INT_MIN;
+        for (char i = 'A'; i <= 'G'; i++)
+            for (char j = 'a'; j <= 'g'; j++)
+            {
+                if (!board[i][j]) continue;
+
+                string tile = cat(i, j);
+
+                queue<string> legalMoves;
+                legalMoves.push(tile + tile);
+
+                for (char column = j + 1; column <= 'g' && board[i][column] == 0; column++)
+                    legalMoves.push(tile + cat(i, column));
+                for (char column = j - 1; column >= 'a' && board[i][column] == 0; column--)
+                    legalMoves.push(tile + cat(i, column));
+                for (char row = i + 1; row <= 'G' && board[row][j] == 0; row++)
+                    legalMoves.push(tile + cat(row, j));
+                for (char row = i - 1; row >= 'A' && board[row][j] == 0; row--)
+                    legalMoves.push(tile + cat(row, j));
+
+                while (!legalMoves.empty())
+                {
+                    string myMove = legalMoves.front();
+                    legalMoves.pop();
+
+                    slide(myMove);
+
+                    int nextScore = getScore();
+                    if (depth != 0) nextScore = getBestMove(bestMove, "Chaos", nextColour, depth - 1);
+
+                    if (nextScore > scoreInCaseOfBestMove)
+                    {
+                        bestMove = myMove;
+                        scoreInCaseOfBestMove = nextScore;
+                    }
+
+                    undoSlide(myMove);
+                }
+            }
+    }
+
+    return 0;
 }
 
 int main()
 {
-    place("4Gd");
-    place("4Ge");
-    place("4Gf");
-    place("4De");
-    place("4Ee");
+    ios::sync_with_stdio(false);
 
-    cout << getScore() << endl;
-    printBoard();
+    for (int i = 1; i <= 7; i++)
+        tileCountOfColour[i] = 7;
+
+    string input;
+    string mode = "Order";
+
+    while (getline(cin, input))
+    {
+        if (input == "Quit") break;
+        else if (input == "Start") mode = "Chaos";
+        else if (mode == "Chaos")
+        {
+            string myMove;
+            getBestMove(myMove, "Chaos", input, 0);
+            place(myMove);
+            cout << myMove.substr(1, 2) << endl;
+        }
+        else if (mode == "Order")
+        {
+            string colour = input.substr(0, 1);
+
+            place(input);
+
+            string myMove;
+            getBestMove(myMove, "Order", colour, 0);
+            slide(myMove);
+
+            cout << myMove << endl;
+        }
+    }
 }
