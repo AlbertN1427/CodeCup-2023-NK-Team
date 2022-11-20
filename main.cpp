@@ -11,8 +11,73 @@
 
 using namespace std;
 
+const int DEPTH = 0;
+
 int board[256][256];
 int tileCountOfColour[10];
+
+void printBoard();
+string cat(char i, char j); // Concatenate 'a' and 'b' into "ab".
+
+// Placing and Sliding
+void place(string myMove);
+void undoPlace(string myMove);
+void slide(string myMove);
+void undoSlide(string myMove);
+
+// Evaluation
+int getScoreFromHorizontalExpansion(char row, char left, char right);
+int getScoreFromVerticalExpansion(char column, char up, char down);
+int getScore();
+
+int getBestMoveForChaos(string& bestMove, const string& colour, int depth);
+int getBestMoveForOrder(string& bestMove, const string& colour, int depth);
+
+int main()
+{
+    ios::sync_with_stdio(false);
+
+    for (int i = 1; i <= 7; i++)
+        tileCountOfColour[i] = 7;
+
+    string input;
+    string mode = "Order";
+    string colour;
+
+    while (getline(cin, input))
+    {
+        if (input == "Quit") break;
+        else if (input == "Start") mode = "Chaos";
+        else if (mode == "Chaos")
+        {
+            if (input.size() == 4)
+            {
+                slide(input);
+                continue;
+            }
+
+            colour = input;
+
+            string myMove;
+            getBestMoveForChaos(myMove, input, DEPTH);
+            place(myMove);
+
+            cout << myMove.substr(1, 2) << endl;
+        }
+        else if (mode == "Order")
+        {
+            place(input);
+
+            colour = input.substr(0, 1);
+
+            string myMove;
+            getBestMoveForOrder(myMove, colour, DEPTH);
+            slide(myMove);
+
+            cout << myMove << endl;
+        }
+    }
+}
 
 void printBoard()
 {
@@ -31,9 +96,6 @@ void place(string myMove)
     int colour = myMove[0] - '0';
     char i = myMove[1];
     char j = myMove[2];
-
-    // Assuming that a placement at (i, j) is legal.
-
     board[i][j] = colour;
     tileCountOfColour[colour]--;
 }
@@ -43,9 +105,6 @@ void undoPlace(string myMove)
     int colour = myMove[0] - '0';
     char i = myMove[1];
     char j = myMove[2];
-
-    // Assuming that the placement at (i, j) was legal.
-
     board[i][j] = 0;
     tileCountOfColour[colour]++;
 }
@@ -56,9 +115,6 @@ void slide(string myMove)
     char j = myMove[1];
     char m = myMove[2];
     char n = myMove[3];
-
-    // Assuming that a slide from (i, j) to (m, n) is legal.
-
     swap(board[i][j], board[m][n]);
 }
 
@@ -68,9 +124,6 @@ void undoSlide(string myMove)
     char j = myMove[1];
     char m = myMove[2];
     char n = myMove[3];
-
-    // Assuming that the slide from (i, j) to (m, n) was legal.
-
     swap(board[m][n], board[i][j]);
 }
 
@@ -117,124 +170,82 @@ int getScore()
     return score;
 }
 
-int getBestMove(string& bestMove, const string& type, const string& colour, int depth)
+int getBestMoveForChaos(string& bestMove, const string& colour, int depth)
 {
-    if (type == "Chaos")
-    {
-        int scoreInCaseOfBestMove = INT_MAX;
+    int scoreInCaseOfBestMove = INT_MAX;
 
-        for (char i = 'A'; i <= 'G'; i++)
-            for (char j = 'a'; j <= 'g'; j++)
+    for (char i = 'A'; i <= 'G'; i++)
+        for (char j = 'a'; j <= 'g'; j++)
+        {
+            if (board[i][j]) continue;
+
+            string tile = cat(i, j);
+            string myMove = colour + tile;
+
+            place(myMove);
+
+            string temp;
+            int nextScore = getScore();
+            if (depth != 0) nextScore = getBestMoveForOrder(temp, colour, depth - 1);
+
+            if (nextScore < scoreInCaseOfBestMove)
             {
-                if (board[i][j]) continue;
+                bestMove = myMove;
+                scoreInCaseOfBestMove = nextScore;
+            }
 
-                string tile = cat(i, j);
-                string myMove = colour + tile;
+            undoPlace(myMove);
+        }
+    return scoreInCaseOfBestMove;
+}
 
-                place(myMove);
+int getBestMoveForOrder(string& bestMove, const string& colour, int depth)
+{
+    int scoreInCaseOfBestMove = INT_MIN;
+    for (char i = 'A'; i <= 'G'; i++)
+        for (char j = 'a'; j <= 'g'; j++)
+        {
+            if (!board[i][j]) continue;
+
+            string tile = cat(i, j);
+
+            queue<string> legalMoves;
+            legalMoves.push(tile + tile);
+
+            for (char column = j + 1; column <= 'g' && board[i][column] == 0; column++)
+                legalMoves.push(tile + cat(i, column));
+            for (char column = j - 1; column >= 'a' && board[i][column] == 0; column--)
+                legalMoves.push(tile + cat(i, column));
+            for (char row = i + 1; row <= 'G' && board[row][j] == 0; row++)
+                legalMoves.push(tile + cat(row, j));
+            for (char row = i - 1; row >= 'A' && board[row][j] == 0; row--)
+                legalMoves.push(tile + cat(row, j));
+
+            while (!legalMoves.empty())
+            {
+                string myMove = legalMoves.front();
+                legalMoves.pop();
+
+                slide(myMove);
+
+                string temp;
 
                 int nextScore = getScore();
-                if (depth != 0) nextScore = getBestMove(bestMove, "Order", colour, depth - 1);
+                if (depth != 0)
+                    for (int nextColour = 1; nextColour <= 7; nextColour++)
+                    {
+                        if (!tileCountOfColour[nextColour]) continue;
+                        nextScore = getBestMoveForChaos(temp, to_string(nextColour), depth - 1);
+                    }
 
-                if (nextScore < scoreInCaseOfBestMove)
+                if (nextScore > scoreInCaseOfBestMove)
                 {
                     bestMove = myMove;
                     scoreInCaseOfBestMove = nextScore;
                 }
 
-                undoPlace(myMove);
+                undoSlide(myMove);
             }
-        return scoreInCaseOfBestMove;
-    }
-
-    if (type == "Order")
-    {
-        int nextColourAsInt = 0;
-        int mostAbundantColour = 0;
-        for (int i = 1; i <= 7; i++)
-            if (tileCountOfColour[i] > mostAbundantColour)
-            {
-                nextColourAsInt = i;
-                mostAbundantColour = tileCountOfColour[i];
-            }
-        string nextColour = string(nextColourAsInt + '0', 1);
-
-        int scoreInCaseOfBestMove = INT_MIN;
-        for (char i = 'A'; i <= 'G'; i++)
-            for (char j = 'a'; j <= 'g'; j++)
-            {
-                if (!board[i][j]) continue;
-
-                string tile = cat(i, j);
-
-                queue<string> legalMoves;
-                legalMoves.push(tile + tile);
-
-                for (char column = j + 1; column <= 'g' && board[i][column] == 0; column++)
-                    legalMoves.push(tile + cat(i, column));
-                for (char column = j - 1; column >= 'a' && board[i][column] == 0; column--)
-                    legalMoves.push(tile + cat(i, column));
-                for (char row = i + 1; row <= 'G' && board[row][j] == 0; row++)
-                    legalMoves.push(tile + cat(row, j));
-                for (char row = i - 1; row >= 'A' && board[row][j] == 0; row--)
-                    legalMoves.push(tile + cat(row, j));
-
-                while (!legalMoves.empty())
-                {
-                    string myMove = legalMoves.front();
-                    legalMoves.pop();
-
-                    slide(myMove);
-
-                    int nextScore = getScore();
-                    if (depth != 0) nextScore = getBestMove(bestMove, "Chaos", nextColour, depth - 1);
-
-                    if (nextScore > scoreInCaseOfBestMove)
-                    {
-                        bestMove = myMove;
-                        scoreInCaseOfBestMove = nextScore;
-                    }
-
-                    undoSlide(myMove);
-                }
-            }
-    }
-
-    return 0;
-}
-
-int main()
-{
-    ios::sync_with_stdio(false);
-
-    for (int i = 1; i <= 7; i++)
-        tileCountOfColour[i] = 7;
-
-    string input;
-    string mode = "Order";
-
-    while (getline(cin, input))
-    {
-        if (input == "Quit") break;
-        else if (input == "Start") mode = "Chaos";
-        else if (mode == "Chaos")
-        {
-            string myMove;
-            getBestMove(myMove, "Chaos", input, 0);
-            place(myMove);
-            cout << myMove.substr(1, 2) << endl;
         }
-        else if (mode == "Order")
-        {
-            string colour = input.substr(0, 1);
-
-            place(input);
-
-            string myMove;
-            getBestMove(myMove, "Order", colour, 0);
-            slide(myMove);
-
-            cout << myMove << endl;
-        }
-    }
+    return scoreInCaseOfBestMove;
 }
