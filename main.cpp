@@ -1,8 +1,3 @@
-/*
- * Current issues:
- * +) Not tested for depth > 0.
- */
-
 #include <iostream>
 #include <climits>
 #include <queue>
@@ -11,7 +6,7 @@
 
 using namespace std;
 
-const int DEPTH = 0;
+const int DEPTH = 3;
 
 int board[256][256];
 int tileCountOfColour[10];
@@ -30,8 +25,8 @@ int getScoreFromHorizontalExpansion(char row, char left, char right);
 int getScoreFromVerticalExpansion(char column, char up, char down);
 int getScore();
 
-int getBestMoveForChaos(string& bestMove, const string& colour, int depth);
-int getBestMoveForOrder(string& bestMove, const string& colour, int depth);
+int getBestMoveForChaos(string& bestContinuation, const string& colour, int depth);
+int getBestMoveForOrder(string& bestContinuation, const string& colour, int depth);
 
 int main()
 {
@@ -39,6 +34,8 @@ int main()
 
     for (int i = 1; i <= 7; i++)
         tileCountOfColour[i] = 7;
+
+    int score = 0;
 
     string input;
     string mode = "Order";
@@ -52,17 +49,18 @@ int main()
         {
             if (input.size() == 4)
             {
+                // Order makes a move
                 slide(input);
                 continue;
             }
 
             colour = input;
 
-            string myMove;
-            getBestMoveForChaos(myMove, input, DEPTH);
-            place(myMove);
+            string bestContinuation;
+            getBestMoveForChaos(bestContinuation, colour, 1);
+            place(bestContinuation);
 
-            cout << myMove.substr(1, 2) << endl;
+            cout << bestContinuation.substr(1, 2) << endl;
         }
         else if (mode == "Order")
         {
@@ -70,12 +68,13 @@ int main()
 
             colour = input.substr(0, 1);
 
-            string myMove;
-            getBestMoveForOrder(myMove, colour, DEPTH);
-            slide(myMove);
+            string bestContinuation;
+            getBestMoveForOrder(bestContinuation, colour, 1);
+            slide(bestContinuation);
 
-            cout << myMove << endl;
+            cout << bestContinuation << endl;
         }
+        //printBoard();
     }
 }
 
@@ -170,10 +169,11 @@ int getScore()
     return score;
 }
 
-int getBestMoveForChaos(string& bestMove, const string& colour, int depth)
+int getNewScore(int previousScore, string previousMove);
+
+int getBestMoveForChaos(string& bestContinuation, const string& colour, int depth)
 {
     int scoreInCaseOfBestMove = INT_MAX;
-
     for (char i = 'A'; i <= 'G'; i++)
         for (char j = 'a'; j <= 'g'; j++)
         {
@@ -184,13 +184,14 @@ int getBestMoveForChaos(string& bestMove, const string& colour, int depth)
 
             place(myMove);
 
-            string temp;
             int nextScore = getScore();
-            if (depth != 0) nextScore = getBestMoveForOrder(temp, colour, depth - 1);
+            string temp;
+            if (depth < DEPTH)
+                nextScore = getBestMoveForOrder(temp, colour, depth + 1);
 
             if (nextScore < scoreInCaseOfBestMove)
             {
-                bestMove = myMove;
+                bestContinuation = myMove;
                 scoreInCaseOfBestMove = nextScore;
             }
 
@@ -199,7 +200,7 @@ int getBestMoveForChaos(string& bestMove, const string& colour, int depth)
     return scoreInCaseOfBestMove;
 }
 
-int getBestMoveForOrder(string& bestMove, const string& colour, int depth)
+int getBestMoveForOrder(string& bestContinuation, const string& colour, int depth)
 {
     int scoreInCaseOfBestMove = INT_MIN;
     for (char i = 'A'; i <= 'G'; i++)
@@ -228,19 +229,27 @@ int getBestMoveForOrder(string& bestMove, const string& colour, int depth)
 
                 slide(myMove);
 
-                string temp;
+                int nextScore = INT_MIN;
 
-                int nextScore = getScore();
-                if (depth != 0)
+                int worstNextScore = INT_MAX;
+                string temp;
+                if (depth < DEPTH)
                     for (int nextColour = 1; nextColour <= 7; nextColour++)
                     {
                         if (!tileCountOfColour[nextColour]) continue;
-                        nextScore = getBestMoveForChaos(temp, to_string(nextColour), depth - 1);
+
+                        int nextScoreIfThisColour = getBestMoveForChaos(temp, to_string(nextColour), depth + 1);
+
+                        if (nextScoreIfThisColour < worstNextScore)
+                            worstNextScore = nextScoreIfThisColour;
+
+                        nextScore = worstNextScore;
                     }
+                else nextScore = getScore();
 
                 if (nextScore > scoreInCaseOfBestMove)
                 {
-                    bestMove = myMove;
+                    bestContinuation = myMove;
                     scoreInCaseOfBestMove = nextScore;
                 }
 
