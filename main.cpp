@@ -1,5 +1,5 @@
 #pragma GCC optimize("Ofast,unroll-loops")
-#pragma GCC target("bmi,bmi2,lzcnt,popcnt")
+//#pragma GCC target("bmi,bmi2,lzcnt,popcnt")
 #pragma GCC target("avx2,popcnt,lzcnt,abm,bmi,bmi2,fma,tune=native")
 
 #include<bits/stdc++.h>
@@ -17,6 +17,9 @@ int tileCountOfColour[10] = {0, 7, 7, 7, 7, 7, 7, 7};
 
 vector<string> tileSequenceForChaos;
 vector<string> tileSequenceForOrder;
+
+vector<string> tileSequenceForChaos1;
+vector<string> tileSequenceForOrder1;
 
 // Utility
 void printBoard();
@@ -38,6 +41,7 @@ int getScoreInColumn(char column);
 
 // Stoccfish
 void initialiseTileSequences();
+void init();
 int _OwO_(const char& i, const char& j);
 int getBestMoveForChaos(string& bestContinuation, const string& colour, const int& depth, const int& maxDepth, const int& currentDelta);
 int getBestMoveForOrder(string& bestContinuation, const string& colour, const int& depth, const int& maxDepth, const int& currentDelta);
@@ -47,9 +51,11 @@ int getBestMoveForOrder1(string& bestContinuation, const string& colour, int dep
 
 signed main()
 {
-    ios::sync_with_stdio(false);
+    ios_base::sync_with_stdio(false);
+    cin.tie(NULL);
 
     initialiseTileSequences();
+    init();
 
     string input;
     string mode = "Order";
@@ -71,7 +77,7 @@ signed main()
             colour = input;
 
             string bestContinuation;
-            getBestMoveForChaos1(bestContinuation, colour, 1, 0);
+            getBestMoveForChaos(bestContinuation, colour, 1, 3 , 0);
             place(bestContinuation);
 
             cout << bestContinuation.substr(1, 2) << endl;
@@ -138,8 +144,8 @@ int getBestMoveForOrder1(string& bestContinuation, const string& colour, int dep
         queue<string> legalMoves;
         legalMoves.push(tile + tile);
 
-        int searchRadius = 2 ;
-        if (depth > 2) searchRadius = 3;
+        int searchRadius = 4 ;
+        if (depth > 2) searchRadius = 2;
 
         for (char column = j + 1; column <= 'g' && board[i][column] == 0 && column <= j + searchRadius; column++)
             legalMoves.push(tile + cat(i, column));
@@ -319,34 +325,70 @@ void initialiseTileSequences()
 {
     for (char i = 'D'; i <= 'G'; i++)
     {
-        for (char j = 'd'; j <= 'g'; j++)
+    	for (char j = 'd'; j <= 'g'; j++)
             tileSequenceForChaos.push_back(cat(i, j));
-        for (char j = 'c'; j >= 'a'; j--)
+    	for (char j = 'c'; j >= 'a'; j--)
             tileSequenceForChaos.push_back(cat(i, j));
     }
 
     for (char i = 'C'; i >= 'A'; i--)
     {
-        for (char j = 'd'; j <= 'g'; j++)
+    	for (char j = 'd'; j <= 'g'; j++)
             tileSequenceForChaos.push_back(cat(i, j));
+    	for (char j = 'c'; j >= 'a'; j--)
+            tileSequenceForChaos.push_back(cat(i, j));
+    }
+
+    for (char i = 'D'; i <= 'G'; i++)
+    {
+    	tileSequenceForOrder.push_back(cat(i, 'G'));
+    	for (char j = 'c'; j < 'g'; j++)
+            tileSequenceForOrder.push_back(cat(i, j));
+    	for (char j = 'b'; j >= 'a'; j--)
+            tileSequenceForOrder.push_back(cat(i, j));
+    }
+
+    for (char i = 'C'; i >= 'A'; i--)
+    {
+    	for (char j = 'c'; j < 'g'; j++)
+            tileSequenceForOrder.push_back(cat(i, j));
+    	for (char j = 'b'; j >= 'a'; j--)
+            tileSequenceForOrder.push_back(cat(i, j));
+        tileSequenceForOrder.push_back(cat(i, 'G'));
+    }
+}
+
+void init() {
+	for (char i = 'D'; i <= 'G'; i++)
+    {
+    	for (char j = 'd'; j <= 'g'; j++)
+            tileSequenceForChaos1.push_back(cat(i, j));
+    	for (char j = 'c'; j >= 'a'; j--)
+            tileSequenceForChaos1.push_back(cat(i, j));
+    }
+
+    for (char i = 'C'; i >= 'A'; i--)
+    {
+    	for (char j = 'c'; j >= 'a'; j--)
+            tileSequenceForChaos1.push_back(cat(i, j));
+    	for (char j = 'd'; j <= 'g'; j++)
+            tileSequenceForChaos1.push_back(cat(i, j));
+    }
+
+    for (char i = 'D'; i <= 'G'; i++)
+    {
+    	for (char j = 'd'; j <= 'g'; j++)
+            tileSequenceForOrder1.push_back(cat(i, j));
         for (char j = 'c'; j >= 'a'; j--)
-            tileSequenceForChaos.push_back(cat(i, j));
+            tileSequenceForOrder1.push_back(cat(i, j));
     }
 
-    for (char i = 'G'; i >= 'D'; i--)
+    for (char i = 'C'; i >= 'A'; i--)
     {
-        for (char j = 'g'; j > 'd'; j--)
-            tileSequenceForOrder.push_back(cat(i, j));
-        for (char j = 'a'; j <= 'd'; j++)
-            tileSequenceForOrder.push_back(cat(i, j));
-    }
-
-    for (char i = 'A'; i <= 'C'; i++)
-    {
-        for (char j = 'g'; j > 'd'; j--)
-            tileSequenceForOrder.push_back(cat(i, j));
-        for (char j = 'a'; j <= 'd'; j++)
-            tileSequenceForOrder.push_back(cat(i, j));
+    	for (char j = 'd'; j <= 'g'; j++)
+            tileSequenceForOrder1.push_back(cat(i, j));
+    	for (char j = 'c'; j >= 'a'; j--)
+            tileSequenceForOrder1.push_back(cat(i, j));
     }
 }
 
@@ -360,7 +402,7 @@ int _OwO_(const char& i, const char& j)
 
     int cnt = 0;
 
-    int searchRadius = 4;
+    int searchRadius = 3;
 
     vector<string> visitableTiles;
     visitableTiles.push_back(tile);
@@ -395,7 +437,7 @@ int getBestMoveForChaos(string& bestContinuation, const string& colour, const in
 {
     int deltaInCaseOfBestMove = INT_MAX;
     int evaluationInCaseOfBestMove = INT_MIN;
-    for (auto tile : tileSequenceForChaos)
+    for (auto tile : tileSequenceForChaos1)
     {
         char i = tile[0];
         char j = tile[1];
@@ -433,7 +475,7 @@ int getBestMoveForOrder(string& bestContinuation, const string& colour, const in
 {
     float deltaInCaseOfBestMove = INT_MIN;
     float evaluationInCaseOfBestMove = INT_MIN;
-    for (auto tile : tileSequenceForOrder)
+    for (auto tile : tileSequenceForOrder1)
     {
         char i = tile[0];
         char j = tile[1];
@@ -443,8 +485,8 @@ int getBestMoveForOrder(string& bestContinuation, const string& colour, const in
         stack<string> legalMoves;
         legalMoves.push(tile + tile);
 
-        int searchRadius = 5;
-        if (depth > 1) searchRadius = 3;
+        int searchRadius = 4;
+        if (depth > 2) searchRadius = 2;
 
         for (char column = j + 1; column <= 'g' && board[i][column] == 0 && column <= j + searchRadius; column++)
             legalMoves.push(tile + cat(i, column));
@@ -501,5 +543,3 @@ int getBestMoveForOrder(string& bestContinuation, const string& colour, const in
     }
     return deltaInCaseOfBestMove;
 }
-
-
